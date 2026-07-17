@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0",
+  "deploymentStatus": "deployed",
+  "updatedAt": "2026-06-21T15:04:42.353Z",
+  "network": {
+    "chainId": 91342,
+    "chainName": "GIWA Sepolia",
+    "rpcUrl": "https://sepolia-rpc.giwa.io",
+    "explorerUrl": "https://sepolia-explorer.giwa.io"
+  },
+  "contracts": {
+    "forecastMarket": "0x16807120e056f045c70b7788bbf1ae3164d5ee4d",
+    "verifiedToken": "0xBCdB22f56642DE57624CfC2fBb9eE398cF3CA268",
+    "verifiedTokenFaucet": "0xfe4b4F5f2f8843dC9Ca75E563f2f7eB0f44Ae83e"
+  },
+  "settlementAsset": {
+    "name": "VerifiedToken",
+    "symbol": "VT",
+    "decimals": 18,
+    "source": "GIWA Playground",
+    "testnetOnly": true,
+    "noRealWorldValue": true
+  },
+  "market": {
+    "feeBps": 100,
+    "feeRecipient": "0x2606e6a227f88676a3be2f38c3d21342881f1339",
+    "resolutionModel": "Authorized onchain resolver",
+    "experimental": true
+  },
+  "demoMarketsSeededAt": "2026-06-21T15:25:19.007Z",
+  "demoMarketSeedLiquidity": "3"
+}
