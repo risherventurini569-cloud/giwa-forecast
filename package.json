@@ -1,0 +1,23 @@
+{
+  "name": "giwa-forecast-contracts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:giwa": "hardhat run scripts/deploy.ts --network giwaSepolia",
+    "verify:giwa": "hardhat verify --network giwaSepolia",
+    "seed:giwa": "hardhat run scripts/create-demo-markets.ts --network giwaSepolia"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox-viem": "^5.0.0",
+    "@nomicfoundation/hardhat-verify": "^3.0.0",
+    "@openzeppelin/contracts": "^5.2.0",
+    "@types/node": "^22.10.1",
+    "dotenv": "^16.4.7",
+    "hardhat": "^3.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "viem": "^2.23.5"
+  }
+}
