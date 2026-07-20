@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useReadContract, useReadContracts } from "wagmi";
 import type { Address } from "viem";
+
 import { forecastMarketAbi } from "./contracts";
 import { ZERO_ADDRESS } from "./utils";
 
@@ -22,24 +23,47 @@ export type ForecastMarket = {
   residualClaimed: boolean;
 };
 
+type MarketReadResult =
+  | {
+      status: "success";
+      result: unknown;
+    }
+  | {
+      status: "failure";
+      result?: undefined;
+      error?: unknown;
+    };
+
+type MarketReadsState = {
+  data?: readonly MarketReadResult[];
+  isLoading: boolean;
+  error: unknown;
+  refetch: () => Promise<unknown>;
+};
+
 const emptyMarketAddress = ZERO_ADDRESS as Address;
 const E18 = 10n ** 18n;
 
 /**
- * viem returns Solidity structs as either tuple arrays or named objects,
- * depending on the provider/transport. This parser supports both forms and
- * normalizes every numeric field to bigint before the UI performs arithmetic.
+ * viem may return a Solidity struct as either a tuple or a named object.
+ * This helper supports both formats.
  */
 function tupleValue(raw: unknown, index: number, key: string): unknown {
   if (Array.isArray(raw)) return raw[index];
-  if (raw && typeof raw === "object") return (raw as Record<string, unknown>)[key];
+  if (raw && typeof raw === "object") {
+    return (raw as Record<string, unknown>)[key];
+  }
   return undefined;
 }
 
 function toBigInt(value: unknown): bigint {
   if (typeof value === "bigint") return value;
-  if (typeof value === "number" && Number.isFinite(value)) return BigInt(Math.trunc(value));
-  if (typeof value === "string" && /^\d+$/.test(value)) return BigInt(value);
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return BigInt(Math.trunc(value));
+  }
+  if (typeof value === "string" && /^\d+$/.test(value)) {
+    return BigInt(value);
+  }
   return 0n;
 }
 
@@ -85,7 +109,7 @@ export function normalizeMarket(id: bigint, raw: unknown): ForecastMarket | unde
     winningUserShares: toBigInt(tupleValue(raw, 10, "winningUserShares")),
     resolved: toBoolean(tupleValue(raw, 11, "resolved")),
     resolvedOutcome: toNumber(tupleValue(raw, 12, "resolvedOutcome")),
-    residualClaimed: toBoolean(tupleValue(raw, 13, "residualClaimed"))
+    residualClaimed: toBoolean(tupleValue(raw, 13, "residualClaimed")),
   };
 }
 
@@ -96,8 +120,8 @@ export function useMarketCount(address?: Address, enabled = true) {
     functionName: "marketCount",
     query: {
       enabled: Boolean(address && address !== ZERO_ADDRESS && enabled),
-      refetchInterval: 12_000
-    }
+      refetchInterval: 12_000,
+    },
   });
 }
 
@@ -105,33 +129,40 @@ export function useMarkets(address?: Address, enabled = true) {
   const countQuery = useMarketCount(address, enabled);
   const count = Number(countQuery.data || 0n);
 
-  const ids = useMemo(
+  const ids = useMemo<bigint[]>(
     () => Array.from({ length: Math.min(count, 36) }, (_, index) => BigInt(index + 1)),
-    [count]
+    [count],
   );
 
+  /*
+   * The ABI is dynamic because the number of markets is read at runtime.
+   * wagmi cannot preserve a useful tuple type for this dynamic array, so the
+   * hook result is normalized to a small explicit result shape after the call.
+   */
   const reads = useReadContracts({
     contracts: ids.map((id) => ({
       address: address || emptyMarketAddress,
       abi: forecastMarketAbi,
       functionName: "getMarket",
-      args: [id]
+      args: [id],
     })) as never,
     query: {
       enabled: Boolean(address && address !== ZERO_ADDRESS && ids.length > 0 && enabled),
-      refetchInterval: 12_000
-    }
-  });
+      refetchInterval: 12_000,
+    },
+  }) as unknown as MarketReadsState;
 
-  const markets = useMemo(() => {
+  const markets = useMemo<ForecastMarket[]>(() => {
     if (!reads.data) return [];
 
     return reads.data
-      .map((item, index) => {
+      .map((item: MarketReadResult, index: number): ForecastMarket | undefined => {
         if (item.status !== "success") return undefined;
         return normalizeMarket(ids[index], item.result);
       })
-      .filter((item): item is ForecastMarket => Boolean(item))
+      .filter(
+        (item: ForecastMarket | undefined): item is ForecastMarket => item !== undefined,
+      )
       .reverse();
   }, [ids, reads.data]);
 
@@ -140,13 +171,11 @@ export function useMarkets(address?: Address, enabled = true) {
     count,
     isLoading: countQuery.isLoading || reads.isLoading,
     error: countQuery.error || reads.error,
-    refetch: reads.refetch
+    refetch: reads.refetch,
   };
 }
 
 export function yesPriceE18(market: ForecastMarket): bigint {
-  // Defensive normalization prevents runtime errors if a provider serializes
-  // a uint field unexpectedly. All math in this function is bigint-only.
   const yesReserve = toBigInt(market.yesReserve);
   const noReserve = toBigInt(market.noReserve);
   const total = yesReserve + noReserve;
